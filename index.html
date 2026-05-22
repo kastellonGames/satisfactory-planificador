@@ -236,6 +236,80 @@ header.gusal-header p {
   .logo-gusal { width: 58%; min-width: 190px; max-width: 320px; margin-bottom: 6px; }
 }
 
+
+/* === Iconos reales del juego (cargados desde wiki/community redirects con fallback) === */
+.itemLine, .machineLine, .matchBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.itemLine.block, .machineLine.block {
+  display: flex;
+}
+.itemIcon, .machineIcon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  vertical-align: middle;
+  border-radius: 6px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.15);
+  flex: 0 0 auto;
+}
+.itemIcon.large {
+  width: 28px;
+  height: 28px;
+}
+.itemIcon.small, .machineIcon.small {
+  width: 20px;
+  height: 20px;
+}
+.itemIcon.placeholder, .machineIcon.placeholder {
+  background: linear-gradient(135deg, #2b3240, #171b22);
+}
+.matchList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.matchBtn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  background: #121720;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 650;
+}
+.matchBtn:hover { border-color: rgba(255,138,33,.55); background: #171d27; }
+.matchBtn .meta { display: flex; flex-direction: column; line-height: 1.15; }
+.matchBtn .meta .en { color: var(--muted); font-size: .76rem; font-weight: 500; }
+.kpiProdWrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kpiProdWrap .itemIcon { width: 30px; height: 30px; }
+.entityCell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.entityCell .text { min-width: 0; }
+.entityCell .text strong { display: block; }
+.chain .pill { gap: 8px; }
+.chain .pill .muted { white-space: nowrap; }
+.miniLabel { margin-top: 8px; margin-bottom: 6px; color: var(--muted); font-size: .82rem; }
+.fieldStack { display:flex; flex-direction:column; gap: 0; }
+.small { color: var(--muted); font-size: .82rem; margin-top: 8px; }
+@media (max-width: 720px) {
+  .matchList { grid-template-columns: 1fr; }
+}
+
 </style>
 </head>
 <body>
@@ -255,6 +329,7 @@ header.gusal-header p {
         <select id="productSelect" aria-label="Lista completa de productos"></select>
       </div>
       <div class="small" id="productHelp"></div>
+      <div id="productMatches" class="matchList"></div>
     </div>
     <div class="card">
       <label for="amountInput">Cantidad objetivo/min</label>
@@ -271,7 +346,7 @@ header.gusal-header p {
   </section>
 
   <section class="kpis">
-    <div class="kpi"><div class="label">Producto</div><div class="value" id="kpiProduct">—</div><div class="sub" id="kpiOriginal">—</div></div>
+    <div class="kpi"><div class="label">Producto</div><div class="value kpiProdWrap" id="kpiProductWrap"><span id="kpiProduct">—</span></div><div class="sub" id="kpiOriginal">—</div></div>
     <div class="kpi"><div class="label">MW exactos</div><div class="value" id="kpiMwExact">—</div><div class="sub">fabricación + extracción</div></div>
     <div class="kpi"><div class="label">MW con margen</div><div class="value" id="kpiMwTarget">—</div><div class="sub" id="kpiMargin">—</div></div>
     <div class="kpi"><div class="label">Generadores necesarios</div><div class="value" id="kpiGenerators">—</div><div class="sub" id="kpiGenSub">—</div></div>
@@ -362,6 +437,89 @@ for (const rows of routesByProduct.values()) {
 const extractionByMaterial = new Map(DATA.extraccion.map(e => [e["Material"], e]));
 const powerByMachine = new Map(DATA.potencias.map(p => [p["Máquina"], num(p["MW"])]));
 const materialByName = new Map(DATA.materiales.map(m => [m["Nombre"], m]));
+
+const originalByName = new Map();
+DATA.materiales.forEach(m => {
+  if (m?.Nombre) originalByName.set(m.Nombre, m.Original || m.Nombre);
+});
+DATA.rutas.forEach(r => {
+  if (r["Producto final"]) originalByName.set(r["Producto final"], r["Producto original"] || r["Producto final"]);
+  if (r["Producto cadena"]) originalByName.set(r["Producto cadena"], r["Producto cadena original"] || r["Producto cadena"]);
+});
+const esc = (s='') => String(s)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;');
+
+function getOriginalName(name) {
+  return materialByName.get(name)?.Original || originalByName.get(name) || name || '';
+}
+function unique(arr) { return [...new Set(arr.filter(Boolean))]; }
+function iconCandidates(name) {
+  const names = unique([getOriginalName(name), name]).map(v => String(v).trim()).filter(Boolean);
+  const out = [];
+  for (const n of names) {
+    const variants = unique([
+      n,
+      n.replace(/\s+/g, '_'),
+      n.replace(/\s+/g, ' ')
+    ]);
+    for (const variant of variants) {
+      const enc = encodeURIComponent(variant);
+      out.push(`https://satisfactory.wiki.gg/wiki/Special:Redirect/file/${enc}.png`);
+      out.push(`https://satisfactory.fandom.com/wiki/Special:Redirect/file/${enc}.png`);
+    }
+  }
+  return unique(out);
+}
+function placeholderDataUrl(label='?') {
+  const safe = esc((label || '?').slice(0,2).toUpperCase());
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#2d3544"/><stop offset="1" stop-color="#1a1f28"/></linearGradient></defs><rect width="64" height="64" rx="12" fill="url(#g)"/><rect x="1" y="1" width="62" height="62" rx="11" fill="none" stroke="#4b5567" stroke-width="2"/><text x="32" y="39" text-anchor="middle" font-size="25" font-family="Arial, sans-serif" fill="#dbe4f0" font-weight="700">${safe}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+window.sfIconFallback = function(img){
+  const candidates = JSON.parse(img.dataset.candidates || '[]');
+  const current = Number(img.dataset.stage || '0');
+  const next = current + 1;
+  if (next < candidates.length) {
+    img.dataset.stage = String(next);
+    img.src = candidates[next];
+    return;
+  }
+  img.onerror = null;
+  img.src = placeholderDataUrl(img.dataset.label || '?');
+  img.classList.add('placeholder');
+};
+function iconHtml(name, cls='itemIcon', title='') {
+  const candidates = iconCandidates(name);
+  const first = candidates[0] || placeholderDataUrl(name);
+  const label = getOriginalName(name) || name;
+  return `<img class="${cls}" src="${first}" alt="" loading="lazy" referrerpolicy="no-referrer" data-stage="0" data-label="${esc(label)}" data-candidates='${esc(JSON.stringify(candidates))}' onerror="window.sfIconFallback(this)" title="${esc(title || name)}">`;
+}
+function entityHtml(name, subtitle='', cls='itemIcon') {
+  return `<span class="entityCell"><span>${iconHtml(name, cls, name)}</span><span class="text"><strong>${esc(name)}</strong>${subtitle ? `<div class="muted">${subtitle}</div>` : ""}</span></span>`;
+}
+function renderProductMatches(query='') {
+  const box = byId('productMatches');
+  const q = (query || '').trim().toLowerCase();
+  let matches = DATA.materiales.filter(m => {
+    const hay = `${m.Nombre} ${m.Original || ''} ${m.Alias || ''}`.toLowerCase();
+    return !q || hay.includes(q);
+  });
+  if (!matches.length) {
+    box.innerHTML = '';
+    return;
+  }
+  matches = matches.slice(0, 12);
+  box.innerHTML = matches.map(m => `<button type="button" class="matchBtn" data-name="${esc(m.Nombre)}"><span>${iconHtml(m.Nombre, 'itemIcon')}</span><span class="meta"><span>${esc(m.Nombre)}</span><span class="en">${esc(m.Original || '')}</span></span></button>`).join('');
+  box.querySelectorAll('.matchBtn').forEach(btn => btn.addEventListener('click', () => {
+    byId('productInput').value = btn.dataset.name;
+    const productSelect = byId('productSelect');
+    if ([...productSelect.options].some(o => o.value === btn.dataset.name)) productSelect.value = btn.dataset.name;
+    calculate();
+  }));
+}
 
 function findClosestProduct(text) {
   const q = (text || "").trim().toLowerCase();
@@ -477,7 +635,7 @@ function calculate() {
   const genMW = num(gen["MW/unidad"]);
   const genCount = genMW > 0 ? ceil(targetMW / genMW) : 0;
 
-  byId("kpiProduct").textContent = product;
+  byId("kpiProductWrap").innerHTML = `${iconHtml(product, "itemIcon large", product)}<span id="kpiProduct">${esc(product)}</span>`;
   byId("kpiOriginal").textContent = original || "—";
   byId("kpiMwExact").textContent = `${fmt(totalMWExact)} MW`;
   byId("kpiMwTarget").textContent = `${fmt(targetMW)} MW`;
@@ -492,7 +650,7 @@ function calculate() {
     const isRaw = String(r["Tipo"] || "").toLowerCase().includes("materia prima");
     const isFinal = idx === rows.length - 1;
     const qty = num(r["Cantidad por 1/min"]) * amount;
-    return `${idx ? '<span class="arrow">→</span>' : ''}<span class="pill ${isRaw ? 'raw' : ''} ${isFinal ? 'final' : ''}"><span>${r["Producto cadena"]}</span><span class="muted">${fmt(qty)}/min</span></span>`;
+    return `${idx ? '<span class="arrow">→</span>' : ''}<span class="pill ${isRaw ? 'raw' : ''} ${isFinal ? 'final' : ''}">${iconHtml(r["Producto cadena"], 'itemIcon small', r["Producto cadena"])}<span>${esc(r["Producto cadena"])}</span><span class="muted">${fmt(qty)}/min</span></span>`;
   }).join("");
 
   addRows("routeRows", rows.map((r, idx) => {
@@ -501,29 +659,31 @@ function calculate() {
     const machines = num(r["Máquinas por 1/min"]) * amount;
     const mw = num(r["MW por 1/min"]) * amount;
     const badge = isRaw ? '<span class="badge raw">Materia prima</span>' : '<span class="badge fab">Fabricación</span>';
+    const recipeOrNote = r["Receta"] || r["Nota"] || "";
+    const machineCell = r["Máquina"] ? `<span class="machineLine block">${iconHtml(r["Máquina"], 'machineIcon small', r["Máquina"])}<span>${esc(r["Máquina"])}</span></span>` : '—';
     return `<tr>
       <td class="num">${idx+1}</td>
-      <td><strong>${r["Producto cadena"]}</strong><br><span class="muted">${r["Receta"] || r["Nota"] || ""}</span></td>
+      <td>${entityHtml(r["Producto cadena"], recipeOrNote ? `<br><span class="muted">${esc(recipeOrNote)}</span>` : '', 'itemIcon')}</td>
       <td>${badge}</td>
       <td class="num">${fmt(qty)}</td>
-      <td>${r["Máquina"] || "—"}</td>
+      <td>${machineCell}</td>
       <td class="num">${machines ? fmt(machines) : "—"}</td>
       <td class="num">${mw ? fmt(mw) : "—"}</td>
-      <td>${r["Insumos directos"] || "—"}</td>
+      <td>${esc(r["Insumos directos"] || "—")}</td>
     </tr>`;
   }));
 
   addRows("rawRows", rawRows.map(r => `<tr>
-    <td><strong>${r.name}</strong><br><span class="muted">${r.original || ""}</span></td>
+    <td>${entityHtml(r.name, esc(r.original || ''), 'itemIcon')}</td>
     <td class="num">${fmt(r.qty)}</td>
-    <td>${r.equipo}</td>
+    <td>${r.equipo ? `<span class="machineLine block">${iconHtml(r.equipo, 'machineIcon small', r.equipo)}<span>${esc(r.equipo)}</span></span>` : '—'}</td>
     <td class="num">${r.rate ? fmt(r.exactEq) + " / " + r.roundedEq + " red." : "—"}</td>
     <td class="num">${r.mwRounded ? fmt(r.mwRounded) : "—"}</td>
-    <td class="muted">${r.notas}</td>
+    <td class="muted">${esc(r.notas)}</td>
   </tr>`));
 
   addRows("machineRows", machineRowsArr.map(m => `<tr>
-    <td><strong>${m.machine}</strong></td>
+    <td><span class="machineLine block">${iconHtml(m.machine, 'machineIcon', m.machine)}<strong>${esc(m.machine)}</strong></span></td>
     <td class="num">${fmt(m.exact)}</td>
     <td class="num">${m.rounded}</td>
     <td class="num">${fmt(m.mwExact)} MW</td>
@@ -540,7 +700,7 @@ function calculate() {
     <tr><td>Total exacto</td><td class="num"><strong>${fmt(totalMWExact)} MW</strong></td></tr>
     <tr><td>Total con máquinas/equipos redondeados</td><td class="num">${fmt(totalMWRounded)} MW</td></tr>
     <tr><td>Objetivo con margen</td><td class="num"><strong>${fmt(targetMW)} MW</strong></td></tr>
-    <tr><td>Generador elegido</td><td class="num">${gen["Generador"]}</td></tr>
+    <tr><td>Generador elegido</td><td class="num"><span class="machineLine">${iconHtml(gen["Generador"], 'machineIcon small', gen["Generador"])}<span>${esc(gen["Generador"])}</span></span></td></tr>
     <tr><td>Unidades necesarias</td><td class="num"><strong>${genCount}</strong></td></tr>
     <tr><td>Combustible</td><td class="num">${gen["Combustible"] || "—"} ${fuel ? "· " + fmt(fuel) + "/min" : ""}</td></tr>
     <tr><td>Agua</td><td class="num">${water ? fmt(water) + "/min" : "—"}</td></tr>
@@ -553,7 +713,7 @@ function init() {
   productList.innerHTML = DATA.productos.map(p => `<option value="${p}"></option>`).join("");
   const productSelect = byId("productSelect");
   productSelect.innerHTML = DATA.productos.map(p => `<option value="${p}">${p}</option>`).join("");
-  byId("productHelp").textContent = `${DATA.productos.length} productos disponibles. Puedes escribir parte del nombre, un alias anterior o usar el desplegable completo.`;
+  byId("productHelp").textContent = `${DATA.productos.length} productos disponibles. Puedes escribir parte del nombre, un alias anterior o usar el desplegable completo. Los iconos intentan cargar la imagen real del juego.`;
 
   const genSelect = byId("generatorSelect");
   genSelect.innerHTML = DATA.generadores.map(g => `<option value="${g["Generador"]}">${g["Generador"]} (${fmt(g["MW/unidad"],0)} MW)</option>`).join("");
@@ -569,18 +729,19 @@ function init() {
   if ([...genSelect.options].some(o => o.value === savedGen)) genSelect.value = savedGen;
 
   addRows("extractionRows", DATA.extraccion.map(e => `<tr>
-    <td><strong>${e["Material"]}</strong></td>
-    <td class="muted">${e["Original"] || ""}</td>
-    <td>${e["Equipo extracción"] || "—"}</td>
+    <td>${entityHtml(e["Material"], esc(e["Original"] || ''), 'itemIcon')}</td>
+    <td class="muted">${esc(e["Original"] || "")}</td>
+    <td>${e["Equipo extracción"] ? `<span class="machineLine block">${iconHtml(e["Equipo extracción"], 'machineIcon small', e["Equipo extracción"])}<span>${esc(e["Equipo extracción"])}</span></span>` : '—'}</td>
     <td class="num">${num(e["Rendimiento/min/equipo"]) ? fmt(e["Rendimiento/min/equipo"]) : "—"}</td>
     <td class="num">${num(e["MW/equipo"]) ? fmt(e["MW/equipo"]) : "—"}</td>
-    <td class="muted">${e["Notas"] || ""}</td>
+    <td class="muted">${esc(e["Notas"] || "")}</td>
   </tr>`));
 
-  byId("productInput").addEventListener("input", calculate);
-  byId("productInput").addEventListener("change", calculate);
+  byId("productInput").addEventListener("input", () => { renderProductMatches(byId("productInput").value); calculate(); });
+  byId("productInput").addEventListener("change", () => { renderProductMatches(byId("productInput").value); calculate(); });
   byId("productSelect").addEventListener("change", () => {
     byId("productInput").value = byId("productSelect").value;
+    renderProductMatches(byId("productSelect").value);
     calculate();
   });
   ["amountInput","marginInput","generatorSelect"].forEach(id => {
@@ -597,6 +758,7 @@ function init() {
     });
   });
 
+  renderProductMatches(savedProduct);
   calculate();
 }
 document.addEventListener("DOMContentLoaded", init);
