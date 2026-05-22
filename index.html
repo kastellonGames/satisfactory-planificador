@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Planificador Satisfactory - Producción, electricidad y selector completo</title>
+<title>G.U.S.A.L - Planificador de Producción Satisfactory</title>
 <style>
 :root {
   --bg: #0f1115;
@@ -209,11 +209,36 @@ footer {
   margin-top: 2px;
 }
 select option { background: #0d1016; color: var(--text); }
+
+/* Cabecera con logo G.U.S.A.L */
+header.gusal-header {
+  padding: 22px 24px 16px;
+  max-width: 1320px;
+  margin: 0 auto;
+  text-align: center;
+}
+.logo-gusal {
+  display: block;
+  width: min(100%, 1040px);
+  height: auto;
+  margin: 0 auto 10px;
+  filter: drop-shadow(0 20px 28px rgba(0,0,0,.42));
+}
+header.gusal-header p {
+  margin: 0 auto;
+  color: var(--muted);
+  max-width: 880px;
+}
+@media (max-width: 720px) {
+  header.gusal-header { padding: 16px 12px 10px; }
+  .logo-gusal { width: min(100%, 760px); margin-bottom: 6px; }
+}
+
 </style>
 </head>
 <body>
-<header>
-  <h1>Planificador Satisfactory</h1>
+<header class="gusal-header">
+  <img class="logo-gusal" src="assets/logo-gusal.png" alt="G.U.S.A.L - Planificador de Producción Satisfactory">
   <p>Calcula rutas de fabricación, materias primas, máquinas y electricidad desde un producto final y una cantidad por minuto. Todo funciona en local, sin macros y sin conexión.</p>
 </header>
 
