@@ -210,28 +210,30 @@ footer {
 }
 select option { background: #0d1016; color: var(--text); }
 
-/* Cabecera con logo G.U.S.A.L */
+/* Cabecera con logo G.U.S.A.L: arriba a la izquierda y al 30% */
 header.gusal-header {
-  padding: 22px 24px 16px;
+  padding: 14px 24px 10px;
   max-width: 1320px;
   margin: 0 auto;
-  text-align: center;
+  text-align: left;
 }
 .logo-gusal {
   display: block;
-  width: min(100%, 1040px);
+  width: 30%;
+  max-width: 390px;
+  min-width: 220px;
   height: auto;
-  margin: 0 auto 10px;
-  filter: drop-shadow(0 20px 28px rgba(0,0,0,.42));
+  margin: 0 0 8px 0;
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,.42));
 }
 header.gusal-header p {
-  margin: 0 auto;
+  margin: 0;
   color: var(--muted);
   max-width: 880px;
 }
 @media (max-width: 720px) {
-  header.gusal-header { padding: 16px 12px 10px; }
-  .logo-gusal { width: min(100%, 760px); margin-bottom: 6px; }
+  header.gusal-header { padding: 12px 14px 8px; }
+  .logo-gusal { width: 58%; min-width: 190px; max-width: 320px; margin-bottom: 6px; }
 }
 
 </style>
