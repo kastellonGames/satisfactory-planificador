@@ -129,6 +129,23 @@ h2 { margin: 0 0 12px; font-size: 1.18rem; }
 }
 .pill.raw { background: rgba(125,220,147,.12); border-color: rgba(125,220,147,.38); }
 .pill.final { background: rgba(255,138,33,.14); border-color: rgba(255,138,33,.45); }
+button.pill.chainProduct {
+  width: auto;
+  cursor: pointer;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  border: 1px solid #354052;
+  background: #232a36;
+}
+button.pill.chainProduct.raw { background: rgba(125,220,147,.12); border-color: rgba(125,220,147,.38); }
+button.pill.chainProduct.final { background: rgba(255,138,33,.14); border-color: rgba(255,138,33,.45); }
+button.pill.chainProduct:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,138,33,.7);
+  box-shadow: 0 8px 18px rgba(0,0,0,.22), 0 0 0 1px rgba(255,138,33,.18) inset;
+}
+button.pill.chainProduct:active { transform: translateY(0); }
 .arrow { color: var(--accent2); font-weight: 900; }
 .tableWrap {
   overflow: auto;
@@ -648,8 +665,23 @@ function calculate() {
     const isRaw = String(r["Tipo"] || "").toLowerCase().includes("materia prima");
     const isFinal = idx === rows.length - 1;
     const qty = num(r["Cantidad por 1/min"]) * amount;
-    return `${idx ? '<span class="arrow">→</span>' : ''}<span class="pill ${isRaw ? 'raw' : ''} ${isFinal ? 'final' : ''}">${iconHtml(r["Producto cadena"], 'itemIcon small', r["Producto cadena"])}<span>${esc(r["Producto cadena"])}</span><span class="muted">${fmt(qty)}/min</span></span>`;
+    const chainName = r["Producto cadena"];
+    const canOpen = routesByProduct.has(chainName);
+    const cls = `pill chainProduct ${isRaw ? 'raw' : ''} ${isFinal ? 'final' : ''}`;
+    const content = `${iconHtml(chainName, 'itemIcon small', chainName)}<span>${esc(chainName)}</span><span class="muted">${fmt(qty)}/min</span>`;
+    return `${idx ? '<span class="arrow">→</span>' : ''}${canOpen ? `<button type="button" class="${cls}" data-product="${esc(chainName)}" title="Ver ruta de ${esc(chainName)}">${content}</button>` : `<span class="pill ${isRaw ? 'raw' : ''} ${isFinal ? 'final' : ''}">${content}</span>`}`;
   }).join("");
+  byId("chainBox").querySelectorAll(".chainProduct").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const selected = btn.dataset.product;
+      if (!selected) return;
+      byId("productInput").value = selected;
+      const productSelect = byId("productSelect");
+      if (productSelect && [...productSelect.options].some(o => o.value === selected)) productSelect.value = selected;
+      renderProductMatches(selected);
+      calculate();
+    });
+  });
 
   addRows("routeRows", rows.map((r, idx) => {
     const isRaw = String(r["Tipo"] || "").toLowerCase().includes("materia prima");
