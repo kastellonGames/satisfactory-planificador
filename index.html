@@ -327,6 +327,125 @@ header.gusal-header p {
   .matchList { grid-template-columns: 1fr; }
 }
 
+
+/* === Árbol visual de materias primas === */
+.treeControls {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 180px 180px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+@media (max-width: 760px) { .treeControls { grid-template-columns: 1fr; } }
+.rawTreeGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.rawTreeCard {
+  background: #10141c;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.rawTreeCard > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(90deg, rgba(255,138,33,.12), rgba(255,255,255,.02));
+}
+.rawTreeCard > summary::-webkit-details-marker,
+.treeDetails > summary::-webkit-details-marker { display: none; }
+.rawTreeTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  color: #fff;
+}
+.rawTreeMeta {
+  color: var(--muted);
+  font-size: .82rem;
+  white-space: nowrap;
+}
+.treeBody {
+  padding: 10px 12px 14px;
+  overflow-x: auto;
+}
+.treeList, .treeList ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+.treeList ul {
+  margin-left: 22px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(255,255,255,.15);
+}
+.treeLi {
+  position: relative;
+  margin: 6px 0;
+}
+.treeLi::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 19px;
+  width: 14px;
+  border-top: 1px solid rgba(255,255,255,.15);
+}
+.treeDetails > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.treeNode {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #354052;
+  background: #202734;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.treeNode.raw { background: rgba(125,220,147,.12); border-color: rgba(125,220,147,.38); }
+.treeNode.final { background: rgba(255,138,33,.14); border-color: rgba(255,138,33,.45); }
+.treeNode.repeated { opacity: .72; }
+.treeProduct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 5px 9px;
+  margin-left: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,138,33,.45);
+  background: rgba(255,138,33,.12);
+  color: #ffd7ad;
+  font-size: .78rem;
+  font-weight: 800;
+}
+.treeProduct:hover { background: rgba(255,138,33,.2); }
+.treeHint {
+  color: var(--muted);
+  font-size: .86rem;
+  margin: 0 0 12px;
+}
+.treeEmpty {
+  color: var(--muted);
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+}
+
 </style>
 </head>
 <body>
@@ -392,6 +511,7 @@ header.gusal-header p {
       <button class="tab" data-tab="materias">Materias primas</button>
       <button class="tab" data-tab="maquinas">Máquinas</button>
       <button class="tab" data-tab="extraccion">Extracción</button>
+      <button class="tab" data-tab="arbol">Árbol de materias</button>
     </div>
 
     <div id="tab-ruta">
@@ -416,6 +536,33 @@ header.gusal-header p {
       <div class="tableWrap"><table><thead><tr>
         <th>Material</th><th>Original</th><th>Equipo</th><th class="num">Rendimiento/min</th><th class="num">MW/equipo</th><th>Notas</th>
       </tr></thead><tbody id="extractionRows"></tbody></table></div>
+    </div>
+
+    <div id="tab-arbol" class="hidden">
+      <p class="treeHint">Explora cada materia prima y sus derivados. Los productos con botón <strong>Ver ruta</strong> saltan directamente al planificador.</p>
+      <div class="treeControls">
+        <div>
+          <label for="treeRootSelect">Materia prima</label>
+          <select id="treeRootSelect"></select>
+        </div>
+        <div>
+          <label for="treeDepthSelect">Profundidad</label>
+          <select id="treeDepthSelect">
+            <option value="3">3 niveles</option>
+            <option value="5" selected>5 niveles</option>
+            <option value="8">8 niveles</option>
+            <option value="99">Todo lo posible</option>
+          </select>
+        </div>
+        <div>
+          <label for="treeOpenSelect">Vista</label>
+          <select id="treeOpenSelect">
+            <option value="compact" selected>Compacta</option>
+            <option value="open">Expandida</option>
+          </select>
+        </div>
+      </div>
+      <div id="rawTreeBox" class="rawTreeGrid"></div>
     </div>
   </section>
 </main>
@@ -452,6 +599,113 @@ for (const rows of routesByProduct.values()) {
 const extractionByMaterial = new Map(DATA.extraccion.map(e => [e["Material"], e]));
 const powerByMachine = new Map(DATA.potencias.map(p => [p["Máquina"], num(p["MW"])]));
 const materialByName = new Map(DATA.materiales.map(m => [m["Nombre"], m]));
+
+const allProductNamesByLength = [...new Set([...(DATA.productos || []), ...(DATA.materiales || []).map(m => m.Nombre)])]
+  .filter(Boolean)
+  .sort((a,b) => b.length - a.length);
+function parseIngredientName(part) {
+  const cleaned = String(part || "")
+    .replace(/^\s*\(?\s*[\d.,]+\s*(?:x)?\s*/i, "")
+    .replace(/\s*\)?\s*$/g, "")
+    .trim();
+  if (!cleaned) return "";
+  const direct = allProductNamesByLength.find(p => cleaned === p);
+  if (direct) return direct;
+  const suffix = allProductNamesByLength.find(p => cleaned.endsWith(p));
+  return suffix || cleaned;
+}
+function buildDerivativeGraph() {
+  const graph = new Map();
+  const addEdge = (from, to) => {
+    if (!from || !to || from === to) return;
+    if (!graph.has(from)) graph.set(from, new Set());
+    graph.get(from).add(to);
+  };
+  DATA.rutas.forEach(r => {
+    const output = r["Producto cadena"];
+    const inputs = String(r["Insumos directos"] || "")
+      .split(/\s+\+\s+/)
+      .map(parseIngredientName)
+      .filter(Boolean);
+    inputs.forEach(input => addEdge(input, output));
+  });
+  return graph;
+}
+const derivativeGraph = buildDerivativeGraph();
+const rawMaterialRoots = [...new Set([
+  ...(DATA.extraccion || []).map(e => e["Material"]),
+  ...(DATA.rutas || [])
+    .filter(r => String(r["Tipo"] || "").toLowerCase().includes("materia prima"))
+    .map(r => r["Producto cadena"])
+])].filter(Boolean).filter(name => derivativeGraph.has(name) || routesByProduct.has(name)).sort((a,b) => a.localeCompare(b, "es"));
+function reachableDerivativeCount(root) {
+  const seen = new Set();
+  const stack = [...(derivativeGraph.get(root) || [])];
+  while (stack.length) {
+    const item = stack.pop();
+    if (!item || seen.has(item)) continue;
+    seen.add(item);
+    (derivativeGraph.get(item) || []).forEach(child => stack.push(child));
+  }
+  return seen.size;
+}
+function selectProductAndCalculate(selected, scrollTop=true) {
+  if (!selected || !routesByProduct.has(selected)) return;
+  byId("productInput").value = selected;
+  const productSelect = byId("productSelect");
+  if (productSelect && [...productSelect.options].some(o => o.value === selected)) productSelect.value = selected;
+  renderProductMatches(selected);
+  calculate();
+  if (scrollTop) document.querySelector("main")?.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function renderTreeNode(name, depthLeft, path, level, openMode) {
+  const children = [...(derivativeGraph.get(name) || [])].sort((a,b) => a.localeCompare(b, "es"));
+  const repeated = path.has(name);
+  const canOpenProduct = routesByProduct.has(name);
+  const hasChildren = children.length > 0 && depthLeft > 0 && !repeated;
+  const isRaw = rawMaterialRoots.includes(name);
+  const nodeCls = `treeNode ${isRaw ? "raw" : ""} ${canOpenProduct ? "final" : ""} ${repeated ? "repeated" : ""}`;
+  const viewBtn = canOpenProduct ? `<button type="button" class="treeProduct" data-product="${esc(name)}">Ver ruta</button>` : "";
+  const repeatedNote = repeated ? `<span class="muted">ya mostrado</span>` : "";
+  const node = `<span class="${nodeCls}">${iconHtml(name, 'itemIcon small', name)}<span>${esc(name)}</span>${repeatedNote}</span>${viewBtn}`;
+  if (!hasChildren) return `<li class="treeLi">${node}</li>`;
+  const nextPath = new Set(path);
+  nextPath.add(name);
+  const open = openMode === "open" || level < 1 ? "open" : "";
+  return `<li class="treeLi"><details class="treeDetails" ${open}><summary>${node}</summary><ul>${children.map(child => renderTreeNode(child, depthLeft - 1, nextPath, level + 1, openMode)).join("")}</ul></details></li>`;
+}
+function renderRawMaterialTree() {
+  const box = byId("rawTreeBox");
+  const rootSelect = byId("treeRootSelect");
+  if (!box || !rootSelect) return;
+  const selected = rootSelect.value || "__ALL__";
+  const depth = Number(byId("treeDepthSelect")?.value || 5);
+  const openMode = byId("treeOpenSelect")?.value || "compact";
+  const roots = selected === "__ALL__" ? rawMaterialRoots : [selected];
+  if (!roots.length) {
+    box.innerHTML = `<div class="treeEmpty">No hay materias primas con derivados en la base actual.</div>`;
+    return;
+  }
+  box.innerHTML = roots.map((root, idx) => {
+    const count = reachableDerivativeCount(root);
+    const open = selected !== "__ALL__" || idx < 2 ? "open" : "";
+    const childList = [...(derivativeGraph.get(root) || [])].sort((a,b) => a.localeCompare(b, "es"));
+    const body = childList.length
+      ? `<div class="treeBody"><ul class="treeList">${childList.map(child => renderTreeNode(child, depth - 1, new Set([root]), 0, openMode)).join("")}</ul></div>`
+      : `<div class="treeBody"><div class="treeEmpty">Sin derivados definidos para esta materia prima.</div></div>`;
+    return `<details class="rawTreeCard" ${open}>
+      <summary><span class="rawTreeTitle">${iconHtml(root, 'itemIcon', root)}<span>${esc(root)}</span></span><span class="rawTreeMeta">${count} derivados</span></summary>
+      ${body}
+    </details>`;
+  }).join("");
+  box.querySelectorAll(".treeProduct").forEach(btn => {
+    btn.addEventListener("click", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      selectProductAndCalculate(btn.dataset.product);
+    });
+  });
+}
 
 const originalByName = new Map();
 DATA.materiales.forEach(m => {
@@ -672,15 +926,7 @@ function calculate() {
     return `${idx ? '<span class="arrow">→</span>' : ''}${canOpen ? `<button type="button" class="${cls}" data-product="${esc(chainName)}" title="Ver ruta de ${esc(chainName)}">${content}</button>` : `<span class="pill ${isRaw ? 'raw' : ''} ${isFinal ? 'final' : ''}">${content}</span>`}`;
   }).join("");
   byId("chainBox").querySelectorAll(".chainProduct").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const selected = btn.dataset.product;
-      if (!selected) return;
-      byId("productInput").value = selected;
-      const productSelect = byId("productSelect");
-      if (productSelect && [...productSelect.options].some(o => o.value === selected)) productSelect.value = selected;
-      renderProductMatches(selected);
-      calculate();
-    });
+    btn.addEventListener("click", () => selectProductAndCalculate(btn.dataset.product, false));
   });
 
   addRows("routeRows", rows.map((r, idx) => {
@@ -748,6 +994,13 @@ function init() {
   const genSelect = byId("generatorSelect");
   genSelect.innerHTML = DATA.generadores.map(g => `<option value="${g["Generador"]}">${g["Generador"]} (${fmt(g["MW/unidad"],0)} MW)</option>`).join("");
 
+  const treeRootSelect = byId("treeRootSelect");
+  if (treeRootSelect) {
+    treeRootSelect.innerHTML = `<option value="__ALL__">Todas las materias primas</option>` + rawMaterialRoots.map(r => `<option value="${esc(r)}">${esc(r)} (${reachableDerivativeCount(r)} derivados)</option>`).join("");
+    const preferredRoot = rawMaterialRoots.includes("Mineral de hierro") ? "Mineral de hierro" : "__ALL__";
+    treeRootSelect.value = preferredRoot;
+  }
+
   const savedProduct = localStorage.getItem("satisfactoryProduct") || "Tornillos";
   const savedAmount = localStorage.getItem("satisfactoryAmount") || "500";
   const savedMargin = localStorage.getItem("satisfactoryMargin") || "20";
@@ -778,17 +1031,22 @@ function init() {
     byId(id).addEventListener("input", calculate);
     byId(id).addEventListener("change", calculate);
   });
+  ["treeRootSelect","treeDepthSelect","treeOpenSelect"].forEach(id => {
+    const el = byId(id);
+    if (el) el.addEventListener("change", renderRawMaterialTree);
+  });
 
   document.querySelectorAll(".tab").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      ["ruta","materias","maquinas","extraccion"].forEach(t => byId("tab-"+t).classList.add("hidden"));
+      ["ruta","materias","maquinas","extraccion","arbol"].forEach(t => byId("tab-"+t).classList.add("hidden"));
       byId("tab-"+btn.dataset.tab).classList.remove("hidden");
     });
   });
 
   renderProductMatches(savedProduct);
+  renderRawMaterialTree();
   calculate();
 }
 document.addEventListener("DOMContentLoaded", init);
