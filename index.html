@@ -434,6 +434,7 @@ header.gusal-header p {
   font-weight: 800;
 }
 .treeProduct:hover { background: rgba(255,138,33,.2); }
+.rawTreeMeta { white-space: nowrap; }
 .treeHint {
   color: var(--muted);
   font-size: .86rem;
@@ -539,7 +540,7 @@ header.gusal-header p {
     </div>
 
     <div id="tab-arbol" class="hidden">
-      <p class="treeHint">Explora cada materia prima y sus derivados. Los productos con botón <strong>Ver ruta</strong> saltan directamente al planificador.</p>
+      <p class="treeHint">Explora cada materia prima y sus derivados. El número de derivados indica el total acumulado de productos que dependen de esa materia; las ramas principales son el primer nivel visible. Los productos con botón <strong>Ver ruta</strong> saltan directamente al planificador.</p>
       <div class="treeControls">
         <div>
           <label for="treeRootSelect">Materia prima</label>
@@ -549,16 +550,16 @@ header.gusal-header p {
           <label for="treeDepthSelect">Profundidad</label>
           <select id="treeDepthSelect">
             <option value="3">3 niveles</option>
-            <option value="5" selected>5 niveles</option>
+            <option value="5">5 niveles</option>
             <option value="8">8 niveles</option>
-            <option value="99">Todo lo posible</option>
+            <option value="99" selected>Todo lo posible</option>
           </select>
         </div>
         <div>
           <label for="treeOpenSelect">Vista</label>
           <select id="treeOpenSelect">
-            <option value="compact" selected>Compacta</option>
-            <option value="open">Expandida</option>
+            <option value="compact">Compacta</option>
+            <option value="open" selected>Expandida</option>
           </select>
         </div>
       </div>
@@ -679,8 +680,8 @@ function renderRawMaterialTree() {
   const rootSelect = byId("treeRootSelect");
   if (!box || !rootSelect) return;
   const selected = rootSelect.value || "__ALL__";
-  const depth = Number(byId("treeDepthSelect")?.value || 5);
-  const openMode = byId("treeOpenSelect")?.value || "compact";
+  const depth = Number(byId("treeDepthSelect")?.value || 99);
+  const openMode = byId("treeOpenSelect")?.value || "open";
   const roots = selected === "__ALL__" ? rawMaterialRoots : [selected];
   if (!roots.length) {
     box.innerHTML = `<div class="treeEmpty">No hay materias primas con derivados en la base actual.</div>`;
@@ -690,11 +691,12 @@ function renderRawMaterialTree() {
     const count = reachableDerivativeCount(root);
     const open = selected !== "__ALL__" || idx < 2 ? "open" : "";
     const childList = [...(derivativeGraph.get(root) || [])].sort((a,b) => a.localeCompare(b, "es"));
+    const directCount = childList.length;
     const body = childList.length
       ? `<div class="treeBody"><ul class="treeList">${childList.map(child => renderTreeNode(child, depth - 1, new Set([root]), 0, openMode)).join("")}</ul></div>`
       : `<div class="treeBody"><div class="treeEmpty">Sin derivados definidos para esta materia prima.</div></div>`;
     return `<details class="rawTreeCard" ${open}>
-      <summary><span class="rawTreeTitle">${iconHtml(root, 'itemIcon', root)}<span>${esc(root)}</span></span><span class="rawTreeMeta">${count} derivados</span></summary>
+      <summary><span class="rawTreeTitle">${iconHtml(root, 'itemIcon', root)}<span>${esc(root)}</span></span><span class="rawTreeMeta">${directCount} ramas principales · ${count} derivados totales</span></summary>
       ${body}
     </details>`;
   }).join("");
