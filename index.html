@@ -447,6 +447,20 @@ header.gusal-header p {
   border-radius: 14px;
 }
 
+
+.treeMore {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(255,138,33,.12);
+  border: 1px solid rgba(255,138,33,.34);
+  color: var(--accent2);
+  font-size: .78rem;
+  font-weight: 750;
+}
+
 </style>
 </head>
 <body>
@@ -669,10 +683,15 @@ function renderTreeNode(name, depthLeft, path, level, openMode) {
   const viewBtn = canOpenProduct ? `<button type="button" class="treeProduct" data-product="${esc(name)}">Ver ruta</button>` : "";
   const repeatedNote = repeated ? `<span class="muted">ya mostrado</span>` : "";
   const node = `<span class="${nodeCls}">${iconHtml(name, 'itemIcon small', name)}<span>${esc(name)}</span>${repeatedNote}</span>${viewBtn}`;
-  if (!hasChildren) return `<li class="treeLi">${node}</li>`;
+  if (!hasChildren) {
+    const hidden = (!repeated && children.length > 0 && depthLeft <= 0) ? `<span class="treeMore">+${children.length} ramas más</span>` : "";
+    return `<li class="treeLi">${node}${hidden}</li>`;
+  }
   const nextPath = new Set(path);
   nextPath.add(name);
-  const open = openMode === "open" || level < 1 ? "open" : "";
+  // En modo compacto también abrimos los nodos generados hasta la profundidad elegida;
+  // si no, 3/5/8 niveles se renderizaban pero quedaban escondidos dentro de desplegables cerrados.
+  const open = (openMode === "open" || openMode === "compact") ? "open" : "";
   return `<li class="treeLi"><details class="treeDetails" ${open}><summary>${node}</summary><ul>${children.map(child => renderTreeNode(child, depthLeft - 1, nextPath, level + 1, openMode)).join("")}</ul></details></li>`;
 }
 function renderRawMaterialTree() {
